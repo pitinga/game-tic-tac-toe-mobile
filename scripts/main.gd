@@ -178,7 +178,7 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 		down = pos
 		down_time = Time.get_ticks_msec()
 		press_target = _hit(pos)
-		if page == "game" and BOARD.has_point(pos) and not paused:
+		if page == "game" and press_target == "board" and not paused:
 			rules.pointer(_game_point(pos))
 		return
 	if not touching:
@@ -186,13 +186,13 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 	touching = false
 	var released_target := _hit(pos)
 	if page == "menu":
-		if Rect2(38, 985, 644, 74).has_point(pos):
+		if Rect2(38, 985, 644, 74).has_point(pos) and Rect2(38, 985, 644, 74).has_point(down):
 			rules.reset()
 			paused = false
 			page = "game"
-		elif Rect2(38, 1077, 644, 74).has_point(pos):
+		elif Rect2(38, 1077, 644, 74).has_point(pos) and Rect2(38, 1077, 644, 74).has_point(down):
 			page = "catalog"
-		elif Rect2(38, 1169, 644, 74).has_point(pos):
+		elif Rect2(38, 1169, 644, 74).has_point(pos) and Rect2(38, 1169, 644, 74).has_point(down):
 			page = "pro"
 	elif page == "game":
 		if released_target == "restart" and press_target == "restart":
@@ -213,7 +213,7 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 			else:
 				rules.tap(b)
 	elif page == "catalog":
-		if pos.y > 1120:
+		if Rect2(36, 1130, 648, 78).has_point(pos) and Rect2(36, 1130, 648, 78).has_point(down):
 			page = "menu"
 		else:
 			var row := 0
@@ -222,10 +222,10 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 					continue
 				var rect := Rect2(36, 170 + row * 101, 648, 90)
 				var link := String(entry[1])
-				if rect.has_point(pos) and link.begins_with("https://play.google.com/store/apps/details?id="):
+				if rect.has_point(pos) and rect.has_point(down) and link.begins_with("https://play.google.com/store/apps/details?id="):
 					OS.shell_open(link)
 					break
 				row += 1
-	elif page == "pro" and pos.y > 1040:
+	elif page == "pro" and Rect2(36, 1090, 648, 84).has_point(pos) and Rect2(36, 1090, 648, 84).has_point(down):
 		page = "menu"
 	queue_redraw()
