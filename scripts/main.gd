@@ -24,6 +24,7 @@ var down_time := 0
 var touching := false
 var active_index := -1
 var press_target := ""
+var exit_requested := false
 
 
 func _ready() -> void:
@@ -82,18 +83,18 @@ func _draw_game() -> void:
 	draw_rect(BOARD, CARD)
 	rules.draw_game(self, BOARD.grow(-10))
 	if paused or rules.ended:
-		var banner: String = "Pausado" if paused else (rules.message if not rules.message.is_empty() else "Fim de jogo")
+		var banner: String = (rules.message if not rules.message.is_empty() else "Fim de jogo") if rules.ended else "Pausado"
 		draw_rect(Rect2(50, 805, 620, 108), Color("293349"))
 		_label(banner, Vector2(360, 858), 30, CARD)
 	_button(Rect2(38, 976, 644, 74), "RECOMEÇAR", true)
-	_button(Rect2(38, 1070, 310, 70), "CONTINUAR" if paused else "PAUSAR")
+	_button(Rect2(38, 1070, 310, 70), "FINALIZADO" if rules.ended else ("CONTINUAR" if paused else "PAUSAR"))
 	_button(Rect2(372, 1070, 310, 70), "MENU")
 	_label("Toque ou deslize na área do jogo", Vector2(360, 1200), 23, MUTED)
 
 
 func _draw_catalog() -> void:
 	_label("Conheça nossos jogos", Vector2(360, 86), 42)
-	_label("Instale os jogos já publicados", Vector2(360, 143), 23, MUTED)
+	_label("Outros jogos do estúdio • em breve", Vector2(360, 143), 23, MUTED)
 	var row := 0
 	for entry in CATALOG:
 		if entry[0] == rules.title:
@@ -123,16 +124,35 @@ func _normalized(event_position: Vector2) -> Vector2:
 	return (event_position - (viewport - Vector2(720, 1280) * factor) / 2.0) / factor
 
 
+func _cancel_pointer() -> void:
+	touching = false
+	active_index = -1
+	press_target = ""
+	down = Vector2.ZERO
+
+
+func _request_exit() -> void:
+	exit_requested = true
+	if not bool(get_meta("test_mode", false)):
+		get_tree().quit()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_cancel_pointer()
+		match page:
+			"game":
+				paused = true
+				page = "menu"
+			"catalog", "pro":
+				page = "menu"
+			_:
+				_request_exit()
+		queue_redraw()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_cancel_pointer()
 		if page == "game":
 			paused = true
-			page = "menu"
-		else:
-			page = "menu"
-		queue_redraw()
-	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT and page == "game":
-		paused = true
 		queue_redraw()
 
 
@@ -152,8 +172,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				active_index = event.index
 				_handle_contact(_normalized(event.position), true)
 		elif event.index == active_index:
-			_handle_contact(_normalized(event.position), false)
-			active_index = -1
+			if event.canceled:
+				_cancel_pointer()
+			else:
+				_handle_contact(_normalized(event.position), false)
+				active_index = -1
 	elif event is InputEventScreenDrag:
 		if event.index == active_index and press_target == "board" and page == "game" and not paused:
 			rules.pointer(_game_point(_normalized(event.position)))
@@ -198,14 +221,14 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 		if released_target == "restart" and press_target == "restart":
 			rules.reset()
 			paused = false
-		elif released_target == "pause" and press_target == "pause":
+		elif released_target == "pause" and press_target == "pause" and not rules.ended:
 			paused = not paused
 		elif released_target == "menu" and press_target == "menu":
 			paused = false
 			page = "menu"
-		elif press_target == "board" and BOARD.has_point(pos) and not paused and not rules.ended:
+		elif press_target == "board" and (BOARD.has_point(pos) or rules.title == "2048" or rules.title == "Snake") and not paused and not rules.ended:
 			var a := _game_point(down)
-			var b := _game_point(pos)
+			var b := _game_point(pos).clamp(Vector2.ZERO, Vector2.ONE)
 			if a.distance_to(b) > 0.035:
 				rules.swipe(a, b)
 			elif Time.get_ticks_msec() - down_time > 480:
