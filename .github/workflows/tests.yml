@@ -9,18 +9,30 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2, pinned
-      - name: Install Godot
+      - name: Install verified Godot 4.7.2
         run: |
-          wget -q https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -O /tmp/godot.zip
-          unzip -q /tmp/godot.zip -d /tmp
-          sudo install /tmp/Godot_v4.7.2-stable_linux.x86_64 /usr/local/bin/godot4
-          godot4 --version
+          set -euo pipefail
+          VERSION=4.7.2-stable
+          FILE=Godot_v${VERSION}_linux.x86_64.zip
+          BASE=https://github.com/godotengine/godot-builds/releases/download/${VERSION}
+          wget -q "${BASE}/${FILE}" -O "/tmp/${FILE}"
+          wget -q "${BASE}/SHA512-SUMS.txt" -O /tmp/SHA512-SUMS.txt
+          cd /tmp
+          grep -F " ${FILE}" SHA512-SUMS.txt | sha512sum -c -
+          unzip -q "${FILE}"
+          sudo install "Godot_v${VERSION}_linux.x86_64" /usr/local/bin/godot4
+          godot4 --version | grep -q '^4\.7\.2\.stable'
+
       - name: Import assets
         run: timeout 120 godot4 --headless --path . --editor --quit
       - name: Test game rules
