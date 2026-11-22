@@ -44,6 +44,16 @@ func ai_turn() -> void:
 		return
 	var best := -2
 	var move_index := -1
+	# Immediate winning moves take priority over equally-scored delayed wins.
+	for i in range(9):
+		if board[i] == 0:
+			board[i] = 2
+			var immediate := winner(board) == 2
+			board[i] = 0
+			if immediate:
+				board[i] = 2
+				_finish_if_needed()
+				return
 	for i in range(9):
 		if board[i] == 0:
 			board[i] = 2
@@ -76,18 +86,27 @@ func _finish_if_needed() -> void:
 			score = 1
 
 
+func board_rect() -> Rect2:
+	var area := Rect2(34, 178, 652, 770).grow(-10)
+	var side := minf(area.size.x - 30, area.size.y - 170)
+	return Rect2(Vector2(area.get_center().x - side * 0.5, area.position.y + 115), Vector2.ONE * side)
+
+
 func tap(p: Vector2) -> void:
 	# Board is centered vertically with a short instruction above it.
-	var x := int(floor(p.x * 3.0))
-	var y := int(floor((p.y - 0.15) / 0.72 * 3.0))
+	var point := Vector2(34, 178) + p * Vector2(652, 770)
+	var rect := board_rect()
+	if not rect.has_point(point): return
+	var local := (point - rect.position) / rect.size
+	var x := int(floor(local.x * 3.0))
+	var y := int(floor(local.y * 3.0))
 	if x >= 0 and x < 3 and y >= 0 and y < 3:
 		play(y * 3 + x)
 
 
 func draw_game(canvas: CanvasItem, area: Rect2) -> void:
 	label(canvas, "Sua vez: X", Vector2(area.get_center().x, area.position.y + 55), 28)
-	var side := minf(area.size.x - 30, area.size.y - 170)
-	var rect := Rect2(Vector2(area.get_center().x - side * 0.5, area.position.y + 115), Vector2.ONE * side)
+	var rect := board_rect()
 	canvas.draw_rect(rect, Color("e4eafa"))
 	for i in range(9):
 		var cell := cell_rect(rect, i % 3, i / 3, 3, 3, 7)
