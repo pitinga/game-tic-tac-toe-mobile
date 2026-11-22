@@ -14,9 +14,13 @@ Partidas rápidas contra o computador e, futuramente, no mesmo aparelho.
 - O código-fonte será público. APKs/AABs de teste e assinaturas não devem ser publicados como artefatos públicos; usar o repositório privado `pitinga/game-mobile-builds` e distribuição controlada.
 - Não armazenar segredos, chaves de assinatura nem IDs reais de produção no código.
 
-## Estado
+## Estado atual (MVP jogável)
 
-Repositório inicializado para desenvolvimento. Ainda não há jogo implementado nem integração real de compras, anúncios ou links da Play Store. Essas são regras aprovadas para a implementação e testes.
+- Godot 4, jogo completo em regras básicas e interface portrait; menu, reinício e sugestões de outros jogos.
+- Comandos: `godot --headless --path . --script res://tests/test_rules.gd` e `godot --headless --path . --script res://tests/test_ui.gd`.
+- CI em `.github/workflows/tests.yml`; revisão visual e testes em Android ainda necessários.
+- Compras Pro, SDK de anúncios e links Play Store **não estão ativos** sem credenciais/ID de publicação. Nenhum anúncio é exibido e nenhuma compra simulada é efetivada.
+- Não contém APK/AAB, chaves ou assinaturas. Os jogos são protótipos funcionais, não versões aprovadas para lançamento.
 
 ## Catálogo
 
