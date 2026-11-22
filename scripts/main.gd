@@ -22,6 +22,8 @@ var paused := false
 var down := Vector2.ZERO
 var down_time := 0
 var touching := false
+var active_index := -1
+var press_target := ""
 
 
 func _ready() -> void:
@@ -121,15 +123,43 @@ func _normalized(event_position: Vector2) -> Vector2:
 	return (event_position - (viewport - Vector2(720, 1280) * factor) / 2.0) / factor
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if page == "game":
+			paused = true
+			page = "menu"
+		else:
+			page = "menu"
+		queue_redraw()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT and page == "game":
+		paused = true
+		queue_redraw()
+
+
+func _hit(pos: Vector2) -> String:
+	if page == "game":
+		if Rect2(38, 976, 644, 74).has_point(pos): return "restart"
+		if Rect2(38, 1070, 310, 70).has_point(pos): return "pause"
+		if Rect2(372, 1070, 310, 70).has_point(pos): return "menu"
+		if BOARD.has_point(pos) and not paused and not rules.ended: return "board"
+	return "none"
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		_handle_contact(_normalized(event.position), event.pressed)
+		if event.pressed:
+			if active_index == -1:
+				active_index = event.index
+				_handle_contact(_normalized(event.position), true)
+		elif event.index == active_index:
+			_handle_contact(_normalized(event.position), false)
+			active_index = -1
 	elif event is InputEventScreenDrag:
-		if page == "game" and not paused:
+		if event.index == active_index and press_target == "board" and page == "game" and not paused:
 			rules.pointer(_game_point(_normalized(event.position)))
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not OS.has_feature("mobile") and active_index == -1:
 		_handle_contact(_normalized(event.position), event.pressed)
-	elif event is InputEventMouseMotion and touching and page == "game" and not paused:
+	elif event is InputEventMouseMotion and touching and active_index == -1 and page == "game" and not paused:
 		rules.pointer(_game_point(_normalized(event.position)))
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if page == "game" and not paused:
@@ -147,12 +177,14 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 		touching = true
 		down = pos
 		down_time = Time.get_ticks_msec()
+		press_target = _hit(pos)
 		if page == "game" and BOARD.has_point(pos) and not paused:
 			rules.pointer(_game_point(pos))
 		return
 	if not touching:
 		return
 	touching = false
+	var released_target := _hit(pos)
 	if page == "menu":
 		if Rect2(38, 985, 644, 74).has_point(pos):
 			rules.reset()
@@ -163,15 +195,15 @@ func _handle_contact(pos: Vector2, pressed: bool) -> void:
 		elif Rect2(38, 1169, 644, 74).has_point(pos):
 			page = "pro"
 	elif page == "game":
-		if Rect2(38, 976, 644, 74).has_point(pos):
+		if released_target == "restart" and press_target == "restart":
 			rules.reset()
 			paused = false
-		elif Rect2(38, 1070, 310, 70).has_point(pos):
+		elif released_target == "pause" and press_target == "pause":
 			paused = not paused
-		elif Rect2(372, 1070, 310, 70).has_point(pos):
+		elif released_target == "menu" and press_target == "menu":
 			paused = false
 			page = "menu"
-		elif BOARD.has_point(pos) and not paused and not rules.ended:
+		elif press_target == "board" and BOARD.has_point(pos) and not paused and not rules.ended:
 			var a := _game_point(down)
 			var b := _game_point(pos)
 			if a.distance_to(b) > 0.035:
